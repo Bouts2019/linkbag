@@ -11,6 +11,7 @@
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
+import { detectChallenge } from "./challenge.ts";
 import { extractPageMeta } from "./util.ts";
 
 console.log = (...args: unknown[]) => console.error(...args);
@@ -33,6 +34,22 @@ type CaptureOptions = {
   compressHTML: boolean;
   removeHiddenElements: boolean;
   browserBypassCSP: boolean;
+  userAgent: string;
+  platform: string;
+  acceptLanguage: string;
+  httpHeaders: Record<string, string>;
+};
+
+// Headless Chromium advertises "HeadlessChrome" in Client Hints even when the
+// User-Agent is overridden. Sites such as WeChat use that to serve a captcha
+// page. Keep all browser hints consistent and recent enough to look ordinary.
+const DEFAULT_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36";
+const DEFAULT_ACCEPT_LANGUAGE = "zh-CN,zh;q=0.9,en;q=0.8";
+const DEFAULT_HTTP_HEADERS: Record<string, string> = {
+  "sec-ch-ua": '"Chromium";v="156", "Not_A Brand";v="24"',
+  "sec-ch-ua-mobile": "?0",
+  "sec-ch-ua-platform": '"Windows"',
 };
 
 type Request = {
@@ -66,6 +83,10 @@ function parseOptions(): CaptureOptions {
     compressHTML: parsed.compressHTML ?? true,
     removeHiddenElements: parsed.removeHiddenElements ?? true,
     browserBypassCSP: parsed.browserBypassCSP ?? true,
+    userAgent: parsed.userAgent ?? DEFAULT_USER_AGENT,
+    platform: parsed.platform ?? "Win32",
+    acceptLanguage: parsed.acceptLanguage ?? DEFAULT_ACCEPT_LANGUAGE,
+    httpHeaders: parsed.httpHeaders ?? DEFAULT_HTTP_HEADERS,
   };
 }
 
@@ -92,6 +113,10 @@ async function main(): Promise<void> {
     compressHTML: options.compressHTML,
     removeHiddenElements: options.removeHiddenElements,
     browserBypassCSP: options.browserBypassCSP,
+    userAgent: options.userAgent,
+    platform: options.platform,
+    acceptLanguage: options.acceptLanguage,
+    httpHeaders: options.httpHeaders,
     removeSavedDate: true,
   };
   await initialize(baseOptions);
@@ -164,6 +189,12 @@ async function main(): Promise<void> {
       }
       const meta = extractPageMeta(head);
       const title = (pageData.title || meta.title || "").replace(/\s+/g, " ").trim().slice(0, 500);
+      const challenge = detectChallenge(head, title || meta.title);
+      if (challenge) {
+        throw new Error(
+          `目标站点返回了${challenge}页面，本次快照未保存。请确认页面能在浏览器中正常打开后重试。`,
+        );
+      }
       send({
         type: "result",
         id: message.id,

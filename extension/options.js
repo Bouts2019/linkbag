@@ -1,4 +1,5 @@
 const DEFAULT_SERVER = "http://127.0.0.1:8787";
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
 const input = document.getElementById("serverInput");
 const testBtn = document.getElementById("testBtn");
@@ -18,9 +19,6 @@ function normalizeServer(value) {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     return { error: "地址需要以 http:// 或 https:// 开头" };
   }
-  if (!["localhost", "127.0.0.1"].includes(url.hostname)) {
-    return { error: "目前只支持本机地址（localhost 或 127.0.0.1）" };
-  }
   if (url.pathname !== "/" && url.pathname !== "") {
     return { error: "请只填写服务地址和端口，不要带路径" };
   }
@@ -28,6 +26,16 @@ function normalizeServer(value) {
     return { error: "地址里不能包含用户名或密码" };
   }
   return { origin: url.origin };
+}
+
+async function requestAccess(origin) {
+  const host = new URL(origin).hostname;
+  if (LOCAL_HOSTS.has(host)) return true;
+  try {
+    return await chrome.permissions.request({ origins: [`${origin}/*`] });
+  } catch {
+    return false;
+  }
 }
 
 function setResult(message, isError = false) {
@@ -68,10 +76,26 @@ async function save() {
     input.focus();
     return;
   }
+  setResult("正在请求该地址的访问权限…");
+  const granted = await requestAccess(result.origin);
+  if (!granted) {
+    setResult("未获得该地址的访问权限，地址没有保存", true);
+    input.focus();
+    return;
+  }
   input.value = result.origin;
   await chrome.storage.local.set({ serverUrl: result.origin });
   setResult("地址已保存，正在连接…");
   await testConnection(result.origin);
+}
+
+async function testWithAccess(origin) {
+  const granted = await requestAccess(origin);
+  if (!granted) {
+    setResult("未获得该地址的访问权限", true);
+    return;
+  }
+  await testConnection(origin);
 }
 
 function openDashboardPage() {
@@ -86,7 +110,7 @@ testBtn.addEventListener("click", () => {
     setResult(result.error, true);
     return;
   }
-  void testConnection(result.origin);
+  void testWithAccess(result.origin);
 });
 
 saveBtn.addEventListener("click", () => void save());

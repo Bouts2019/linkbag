@@ -26,21 +26,21 @@
         <p class="kicker">收藏，也留住当时的样子</p>
         <h1>扩展设置</h1>
         <p class="lede">
-          扩展只连接本机的 LinkBag 服务。右键网页或链接存入收藏，点工具栏图标查看每一次备份。
+          扩展可以连接本机或远程的 LinkBag 服务。右键网页或链接存入收藏，点工具栏图标查看每一次备份。
         </p>
       </section>
 
       <section class="section">
         <div class="section-label">
           <h2>连接地址</h2>
-          <p>LinkBag 服务默认运行在本机的 8787 端口。远程地址目前不支持。</p>
+          <p>默认连接本机。也可以填写远程服务器，保存时会请求该地址的访问权限。</p>
         </div>
         <div class="section-body">
           <label class="field">
             <span>服务地址</span>
             <input id="serverInput" type="url" spellcheck="false" placeholder="http://127.0.0.1:8787" />
           </label>
-          <p class="field-hint">使用 http://127.0.0.1:8787 或 http://localhost:8787。</p>
+          <p class="field-hint">例如 http://127.0.0.1:8787 或 http://192.168.1.10:8787。只填写你信任的服务器。</p>
           <div class="actions">
             <button type="button" class="btn btn-quiet" id="testBtn">测试连接</button>
             <button type="button" class="btn btn-primary" id="saveBtn">保存地址</button>
@@ -95,7 +95,7 @@
             <span>控制台</span>
             <button type="button" class="text-btn" id="openDashboard">打开 LinkBag 控制台</button>
           </div>
-          <p class="privacy">扩展只读取当前页面或链接的地址，并发送到你填写的本机服务。它不会读取页面正文。</p>
+          <p class="privacy">扩展只读取当前页面或链接的地址，并发送到你填写的 LinkBag 服务。它不会读取页面正文。远程地址请只在可信网络中使用。</p>
         </div>
       </section>
 
