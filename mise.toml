@@ -1,0 +1,22 @@
+[tools]
+bun = "1.2.19"
+
+[tasks.setup]
+description = "安装依赖并准备开发环境"
+run = "bun install"
+
+[tasks.dev]
+description = "启动 API + 前端开发服务器"
+run = "bun run dev"
+
+[tasks.build]
+description = "构建前端静态资源"
+run = "bun run build"
+
+[tasks.start]
+description = "构建并启动 LinkBag"
+run = "bun run build && bun run start"
+
+[tasks.test]
+description = "运行测试"
+run = "bun test"

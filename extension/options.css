@@ -1,0 +1,367 @@
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("fonts/bricolage-grotesque-latin.woff2") format("woff2");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Newsreader";
+  src: url("fonts/newsreader-latin.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --paper: #ecede6;
+  --sheet: #f8f8f3;
+  --sheet-2: #f2f2eb;
+  --ink: #17201c;
+  --ink-2: #3d4741;
+  --muted: #5b655d;
+  --faint: #646e65;
+  --line: #d2d5ca;
+  --line-strong: #b9bfb2;
+  --moss: #2d463b;
+  --moss-deep: #20352c;
+  --stamp: #a63b2e;
+  --ochre: #a8792d;
+  --wash: #e1e6d6;
+  --serif: "Newsreader", "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
+  --sans: "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  font-family: var(--sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 2px;
+}
+
+input:focus-visible {
+  outline: none;
+}
+
+::selection {
+  background: var(--moss);
+  color: var(--sheet);
+}
+
+.page {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 30px 30px 80px;
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.brand span {
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.head-note {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.intro {
+  padding: 34px 0 30px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.kicker {
+  margin: 0 0 10px;
+  color: var(--stamp);
+  font-size: 10px;
+  letter-spacing: 0.025em;
+}
+
+.intro h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.lede {
+  max-width: 46em;
+  margin: 13px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.section {
+  display: grid;
+  grid-template-columns: 215px minmax(0, 1fr);
+  gap: 40px;
+  padding: 28px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.section-label h2 {
+  margin: 0 0 7px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.section-label p {
+  max-width: 24em;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.75;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field > span {
+  font-size: 11.5px;
+}
+
+.field input {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background: var(--sheet);
+  color: var(--ink);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11.5px;
+}
+
+.field input:focus {
+  border-color: var(--ink);
+}
+
+.field-hint {
+  margin: 6px 0 0;
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  background: var(--sheet);
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.btn:hover {
+  background: var(--wash);
+}
+
+.btn-primary {
+  border-color: var(--moss);
+  background: var(--moss);
+  color: var(--sheet);
+}
+
+.btn-primary:hover {
+  border-color: var(--moss-deep);
+  background: var(--moss-deep);
+}
+
+.btn-quiet {
+  border-color: var(--line-strong);
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.btn-quiet:hover {
+  background: var(--sheet);
+  border-color: var(--ink-2);
+  color: var(--ink);
+}
+
+.test-result {
+  color: var(--moss);
+  font-size: 10.5px;
+}
+
+.test-result.is-error {
+  color: var(--stamp);
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.step-number {
+  color: var(--faint);
+  font-size: 10px;
+  line-height: 1.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.steps strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.steps p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.75;
+}
+
+.about-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.about-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 11.5px;
+}
+
+.about-row:first-child {
+  padding-top: 0;
+}
+
+.about-row code {
+  color: var(--muted);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 10px;
+}
+
+.text-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--moss);
+  font-size: 11px;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}
+
+.text-btn:hover {
+  text-decoration-color: var(--moss);
+}
+
+.privacy {
+  margin: 14px 0 0;
+  color: var(--faint);
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-top: 26px;
+}
+
+.foot p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+@media (max-width: 680px) {
+  .page {
+    padding: 22px 18px 60px;
+  }
+
+  .intro h1 {
+    font-size: 36px;
+  }
+
+  .section {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 22px 0;
+  }
+
+  .section-label p {
+    max-width: 38em;
+  }
+
+  .foot {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+data/
+*.log
+.DS_Store
+Thumbs.db
+# local browser profiles created while debugging
+.browser-profile/
+# local verification artifacts
+.shots/
+.direct-*.html
+.test-direct.mjs
