@@ -10,3 +10,5 @@ Thumbs.db
 .shots/
 .direct-*.html
 .test-direct.mjs
+# docker-deploy local configuration (never commit server details)
+.deploy/
