@@ -4,6 +4,7 @@ import type { BrowserState } from "../shared/types";
 import { config } from "./config";
 import { publish } from "./events";
 import type { Store } from "./db";
+import type { WechatVideo } from "./wechat";
 
 export type CaptureResult = {
   size: number;
@@ -11,11 +12,22 @@ export type CaptureResult = {
   title: string;
   excerpt: string;
   durationMs: number;
+  videos: WechatVideo[];
 };
 
 type WorkerMessage =
   | { type: "ready" }
-  | { type: "result"; id: number; ok: true; size: number; sha256: string; title: string; excerpt: string; durationMs: number }
+  | {
+      type: "result";
+      id: number;
+      ok: true;
+      size: number;
+      sha256: string;
+      title: string;
+      excerpt: string;
+      durationMs: number;
+      videos?: WechatVideo[];
+    }
   | { type: "result"; id: number; ok: false; error: string; durationMs: number }
   | { type: "fatal"; error: string };
 
@@ -323,6 +335,7 @@ export class CaptureEngine {
           title: message.title,
           excerpt: message.excerpt,
           durationMs: message.durationMs,
+          videos: message.videos ?? [],
         });
       } else {
         const stderr = this.stderrRing.trim();

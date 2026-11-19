@@ -13,6 +13,7 @@ import { writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { detectChallenge } from "./challenge.ts";
 import { extractPageMeta } from "./util.ts";
+import { extractWechatVideos, isWechatArticleUrl, type WechatVideo } from "./wechat.ts";
 
 console.log = (...args: unknown[]) => console.error(...args);
 console.info = (...args: unknown[]) => console.error(...args);
@@ -88,6 +89,48 @@ function parseOptions(): CaptureOptions {
     acceptLanguage: parsed.acceptLanguage ?? DEFAULT_ACCEPT_LANGUAGE,
     httpHeaders: parsed.httpHeaders ?? DEFAULT_HTTP_HEADERS,
   };
+}
+
+/**
+ * SingleFile replaces the WeChat player iframe with its serialized DOM, which
+ * no longer has the signed MP4 URLs. Fetch the article once more to read
+ * `video_page_infos` and return the direct media URLs for the parent process.
+ * This is best-effort: a video failure must not discard a good page snapshot.
+ */
+async function findWechatVideos(
+  url: string,
+  capturedHtml: string,
+  options: CaptureOptions,
+): Promise<WechatVideo[]> {
+  if (!isWechatArticleUrl(url)) return [];
+  if (!capturedHtml.includes("data-mpvid") && !capturedHtml.includes("video_iframe")) return [];
+
+  const direct = extractWechatVideos(capturedHtml);
+  if (direct.length > 0) return direct;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        ...options.httpHeaders,
+        "user-agent": options.userAgent,
+        "accept-language": options.acceptLanguage,
+        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) {
+      console.error(`[capture] video metadata request returned ${response.status}`);
+      return [];
+    }
+    const videos = extractWechatVideos(await response.text());
+    if (videos.length === 0) {
+      console.error("[capture] WeChat page has video placeholders but no downloadable video metadata");
+    }
+    return videos;
+  } catch (error) {
+    console.error("[capture] video metadata request failed", error);
+    return [];
+  }
 }
 
 async function main(): Promise<void> {
@@ -175,16 +218,20 @@ async function main(): Promise<void> {
       let sha256: string;
       let size: number;
       let head: string;
+      let capturedHtml: string;
+      const needsVideoCheck = isWechatArticleUrl(message.url);
       if (typeof pageData.content === "string") {
         sha256 = createHash("sha256").update(pageData.content, "utf8").digest("hex");
         size = Buffer.byteLength(pageData.content, "utf8");
         head = pageData.content.slice(0, 512 * 1024);
+        capturedHtml = needsVideoCheck ? pageData.content : head;
         writeFileSync(message.output, pageData.content, "utf8");
       } else {
         const bytes = Buffer.from(pageData.content);
         sha256 = createHash("sha256").update(bytes).digest("hex");
         size = bytes.length;
         head = bytes.subarray(0, 512 * 1024).toString("utf8");
+        capturedHtml = needsVideoCheck ? bytes.toString("utf8") : head;
         writeFileSync(message.output, bytes);
       }
       const meta = extractPageMeta(head);
@@ -195,6 +242,8 @@ async function main(): Promise<void> {
           `目标站点返回了${challenge}页面，本次快照未保存。请确认页面能在浏览器中正常打开后重试。`,
         );
       }
+      const videos = await findWechatVideos(message.url, capturedHtml, options);
+      if (videos.length > 0) console.error(`[capture] found ${videos.length} WeChat videos`);
       send({
         type: "result",
         id: message.id,
@@ -203,6 +252,7 @@ async function main(): Promise<void> {
         excerpt: meta.excerpt,
         size,
         sha256,
+        videos,
         durationMs: Date.now() - startedAt,
       });
     } catch (error) {

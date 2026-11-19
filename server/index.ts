@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { extname, join, normalize, resolve } from "node:path";
+import { dirname, extname, join, normalize, resolve } from "node:path";
 import { config } from "./config";
 import { Store } from "./db";
 import { CaptureEngine } from "./engine";
@@ -116,6 +116,59 @@ const server = Bun.serve({
   },
 });
 
+function parseByteRange(value: string, size: number): { start: number; end: number } | "invalid" {
+  const match = /^bytes=(\d*)-(\d*)$/.exec(value.trim());
+  if (!match) return "invalid";
+  const startText = match[1] ?? "";
+  const endText = match[2] ?? "";
+  if (startText === "") {
+    const suffix = Number(endText);
+    if (!Number.isInteger(suffix) || suffix <= 0 || size === 0) return "invalid";
+    return { start: Math.max(0, size - suffix), end: size - 1 };
+  }
+  const start = Number(startText);
+  let end = endText === "" ? size - 1 : Number(endText);
+  if (!Number.isInteger(start) || !Number.isInteger(end) || size === 0 || start >= size || start > end) {
+    return "invalid";
+  }
+  end = Math.min(end, size - 1);
+  return { start, end };
+}
+
+async function serveArchiveVideo(request: Request, path: string): Promise<Response> {
+  const file = Bun.file(path);
+  if (!(await file.exists())) return new Response("Not found", { status: 404 });
+  const size = (await file.stat()).size;
+  const headers = new Headers({
+    "Content-Type": "video/mp4",
+    "Cache-Control": "public, max-age=31536000, immutable",
+    "X-Content-Type-Options": "nosniff",
+    "X-Robots-Tag": "noindex, nofollow",
+    "Referrer-Policy": "no-referrer",
+    "Accept-Ranges": "bytes",
+  });
+
+  const rangeHeader = request.headers.get("range");
+  if (rangeHeader) {
+    const range = parseByteRange(rangeHeader, size);
+    if (range === "invalid") {
+      return new Response("Range Not Satisfiable", {
+        status: 416,
+        headers: { "Content-Range": `bytes */${size}`, "Accept-Ranges": "bytes" },
+      });
+    }
+    headers.set("Content-Range", `bytes ${range.start}-${range.end}/${size}`);
+    headers.set("Content-Length", String(range.end - range.start + 1));
+    return new Response(request.method === "HEAD" ? null : file.slice(range.start, range.end + 1), {
+      status: 206,
+      headers,
+    });
+  }
+
+  headers.set("Content-Length", String(size));
+  return new Response(request.method === "HEAD" ? null : file, { headers });
+}
+
 const archiveServer = Bun.serve({
   hostname: config.archiveHost,
   port: config.archivePort,
@@ -124,6 +177,14 @@ const archiveServer = Bun.serve({
       return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
     }
     const url = new URL(request.url);
+    const videoMatch = url.pathname.match(/^\/a\/(\d+)\/videos\/([A-Za-z0-9_-]+\.mp4)$/);
+    if (videoMatch?.[1] && videoMatch[2]) {
+      const id = Number(videoMatch[1]);
+      const meta = store.getArchiveMeta(id);
+      if (!meta) return new Response("Not found", { status: 404 });
+      return serveArchiveVideo(request, join(dirname(meta.path), String(id), "videos", videoMatch[2]));
+    }
+
     const match = url.pathname.match(/^\/a\/(\d+)$/);
     if (!match?.[1]) return new Response("Not found", { status: 404 });
     const id = Number(match[1]);

@@ -1,5 +1,6 @@
 import { Database } from "bun:sqlite";
-import { unlinkSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
+import { rmSync, unlinkSync } from "node:fs";
 import type {
   Activity,
   Backup,
@@ -77,6 +78,18 @@ function removeFile(path: string | null | undefined): void {
     unlinkSync(path);
   } catch {
     // already gone
+  }
+  // A snapshot may have companion assets (for example WeChat videos) in a
+  // sibling directory named after the backup id: archives/<id>/.
+  if (/\.html$/i.test(path)) {
+    try {
+      rmSync(join(dirname(path), basename(path).replace(/\.html$/i, "")), {
+        recursive: true,
+        force: true,
+      });
+    } catch {
+      // ignore missing or locked assets
+    }
   }
 }
 
