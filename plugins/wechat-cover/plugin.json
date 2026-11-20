@@ -1,0 +1,10 @@
+{
+  "id": "wechat-cover",
+  "name": "微信公众号封面图",
+  "version": "1.0.0",
+  "description": "保存微信公众号文章的原始封面图和分享卡片图。",
+  "author": "LinkBag",
+  "entry": "index.js",
+  "hosts": ["mp.weixin.qq.com"],
+  "defaultEnabled": true
+}

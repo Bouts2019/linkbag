@@ -1274,6 +1274,74 @@ textarea:focus-visible {
   margin-top: 29px;
 }
 
+.asset-section {
+  margin-top: 24px;
+}
+
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 11px;
+}
+
+.asset-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  background: var(--sheet);
+}
+
+.asset-thumb {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--line);
+  background: var(--sheet-2);
+  overflow: hidden;
+}
+
+.asset-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.asset-file {
+  color: var(--muted);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 10px;
+}
+
+.asset-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.asset-label {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-info small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .history-head {
   padding-bottom: 8px;
   border-bottom: 1px solid var(--ink);
@@ -2012,6 +2080,50 @@ textarea:focus-visible {
   color: var(--ink-2);
   font-size: 9.5px;
   white-space: nowrap;
+}
+
+.plugin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.plugin-row:first-child {
+  padding-top: 0;
+}
+
+.plugin-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.plugin-version {
+  color: var(--faint);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 9px;
+}
+
+.plugin-hosts {
+  color: var(--faint) !important;
+  font-size: 9.5px !important;
+}
+
+.plugin-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 14px;
+}
+
+.plugin-hint {
+  color: var(--faint);
+  font-size: 9.5px;
 }
 
 .settings-footer {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Activity, Backup, Bookmark, Health, Settings, Stats } from "../../shared/types";
+import type { Activity, Backup, Bookmark, Health, PluginInfo, Settings, Stats } from "../../shared/types";
 import { api, ApiRequestError } from "./api";
 import { Header } from "./components/Header";
 import { Ledger } from "./components/Ledger";
@@ -39,6 +39,8 @@ export function App() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
+  const [pluginsLoading, setPluginsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailState | null>(null);
@@ -233,6 +235,7 @@ export function App() {
   useEffect(() => {
     if (route.view !== "settings") return;
     let cancelled = false;
+    setPluginsLoading(true);
     api
       .settings()
       .then((data) => {
@@ -242,6 +245,17 @@ export function App() {
       })
       .catch(() => {
         // keep the last known settings; the page shows an inline error
+      });
+    api
+      .plugins()
+      .then((data) => {
+        if (!cancelled) setPlugins(data.plugins);
+      })
+      .catch(() => {
+        // keep the last known plugin list
+      })
+      .finally(() => {
+        if (!cancelled) setPluginsLoading(false);
       });
     return () => {
       cancelled = true;
@@ -445,6 +459,29 @@ export function App() {
     }
   };
 
+  const handleTogglePlugin = async (id: string, enabled: boolean) => {
+    try {
+      const response = await api.updatePlugin(id, enabled);
+      setPlugins(response.plugins);
+      notify(enabled ? "插件已启用" : "插件已停用");
+    } catch (error) {
+      notifyError(error);
+    }
+  };
+
+  const handleReloadPlugins = async () => {
+    setPluginsLoading(true);
+    try {
+      const response = await api.reloadPlugins();
+      setPlugins(response.plugins);
+      notify("插件已重新扫描");
+    } catch (error) {
+      notifyError(error);
+    } finally {
+      setPluginsLoading(false);
+    }
+  };
+
   const selectedBookmark =
     route.id === null
       ? null
@@ -523,10 +560,14 @@ export function App() {
         <SettingsView
           settings={settings}
           health={health}
+          plugins={plugins}
+          pluginsLoading={pluginsLoading}
           loading={loading}
           error={loadError}
           saving={savingSettings}
           onSave={handleSaveSettings}
+          onTogglePlugin={(id, enabled) => void handleTogglePlugin(id, enabled)}
+          onReloadPlugins={() => void handleReloadPlugins()}
           onReleaseBrowser={() => void handleReleaseBrowser()}
           onBackupAll={() => void handleBackupAll()}
           onRefresh={() => {

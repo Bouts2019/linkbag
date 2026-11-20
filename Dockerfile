@@ -26,6 +26,7 @@ COPY package.json bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --production --frozen-lockfile
 COPY --from=build /app/server ./server
 COPY --from=build /app/shared ./shared
+COPY --from=build /app/plugins ./plugins
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/LICENSE ./LICENSE
 

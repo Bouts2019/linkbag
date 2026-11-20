@@ -11,6 +11,7 @@ import { config } from "./config";
 import type { Store } from "./db";
 import type { BackupQueue } from "./queue";
 import type { CaptureEngine } from "./engine";
+import type { PluginManager } from "./plugins";
 import { subscribe } from "./events";
 import { clampText, normalizeUrl, parseInterval } from "./util";
 
@@ -18,6 +19,7 @@ type Deps = {
   store: Store;
   engine: CaptureEngine;
   queue: BackupQueue;
+  plugins: PluginManager;
 };
 
 function isAllowedOrigin(origin: string | undefined, selfOrigin: string | null): boolean {
@@ -81,7 +83,7 @@ async function readBody<T>(request: Request): Promise<T | null> {
 }
 
 export function createApi(deps: Deps): Hono {
-  const { store, engine, queue } = deps;
+  const { store, engine, queue, plugins } = deps;
   const app = new Hono();
 
   app.use("/api/*", async (c, next) => {
@@ -224,6 +226,32 @@ export function createApi(deps: Deps): Hono {
       return c.json({ error: { code: "failed", message: "删除失败" } }, 500);
     }
     return c.json({ ok: true });
+  });
+
+  app.get("/api/backups/:id/assets", (c) => {
+    const id = Number(c.req.param("id"));
+    if (!Number.isInteger(id) || id <= 0 || !store.getBackup(id)) {
+      return c.json({ error: { code: "not_found", message: "找不到这份快照" } }, 404);
+    }
+    return c.json({ assets: store.listBackupAssets(id) });
+  });
+
+  app.get("/api/plugins", (c) => c.json({ plugins: plugins.list() }));
+
+  app.patch("/api/plugins/:id", async (c) => {
+    const id = c.req.param("id");
+    const body = await readBody<{ enabled?: unknown }>(c.req.raw);
+    if (!body || typeof body.enabled !== "boolean") {
+      return c.json({ error: { code: "invalid_body", message: "enabled 必须是布尔值" } }, 400);
+    }
+    if (!plugins.setEnabled(id, body.enabled)) {
+      return c.json({ error: { code: "not_found", message: "找不到这个插件" } }, 404);
+    }
+    return c.json({ plugins: plugins.list() });
+  });
+
+  app.post("/api/plugins/reload", async (c) => {
+    return c.json({ plugins: await plugins.reload() });
   });
 
   app.get("/api/activity", (c) => {

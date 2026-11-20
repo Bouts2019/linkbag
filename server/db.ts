@@ -4,6 +4,8 @@ import { rmSync, unlinkSync } from "node:fs";
 import type {
   Activity,
   Backup,
+  BackupAsset,
+  BackupAssetInput,
   BackupStatus,
   Bookmark,
   BrowserState,
@@ -146,6 +148,26 @@ export class Store {
       CREATE INDEX IF NOT EXISTS idx_backups_bookmark ON backups(bookmark_id, id DESC);
       CREATE INDEX IF NOT EXISTS idx_backups_status ON backups(status, id);
 
+      CREATE TABLE IF NOT EXISTS backup_assets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        backup_id INTEGER NOT NULL REFERENCES backups(id) ON DELETE CASCADE,
+        plugin_id TEXT NOT NULL,
+        plugin_name TEXT NOT NULL DEFAULT '',
+        role TEXT NOT NULL DEFAULT 'asset',
+        label TEXT NOT NULL DEFAULT '',
+        filename TEXT NOT NULL,
+        content_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+        size INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_backup_assets_backup ON backup_assets(backup_id, id);
+
+      CREATE TABLE IF NOT EXISTS plugin_states (
+        plugin_id TEXT PRIMARY KEY,
+        enabled INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -224,6 +246,26 @@ export class Store {
     this.settingsCache = next;
     publish({ type: "settings" });
     return next;
+  }
+
+  // ---------- plugins ----------
+
+  pluginStates(): Map<string, boolean> {
+    const rows = this.db.query("SELECT plugin_id, enabled FROM plugin_states").all() as {
+      plugin_id: string;
+      enabled: number;
+    }[];
+    return new Map(rows.map((row) => [row.plugin_id, row.enabled === 1]));
+  }
+
+  setPluginEnabled(pluginId: string, enabled: boolean): void {
+    this.db
+      .query(
+        `INSERT INTO plugin_states (plugin_id, enabled, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(plugin_id) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at`,
+      )
+      .run(pluginId, enabled ? 1 : 0, now());
+    publish({ type: "settings" });
   }
 
   // ---------- bookmarks ----------
@@ -408,6 +450,7 @@ export class Store {
       path: string;
       durationMs: number;
       sameAsPrevious: boolean;
+      assets?: BackupAssetInput[];
     },
   ): { backup: Backup | null; removedPaths: string[] } {
     const stamp = now();
@@ -458,6 +501,29 @@ export class Store {
           data.excerpt,
           bookmark.id,
         );
+
+      const assets = data.assets ?? [];
+      this.db.query("DELETE FROM backup_assets WHERE backup_id = ?").run(id);
+      if (assets.length > 0) {
+        const insertAsset = this.db.query(
+          `INSERT INTO backup_assets
+            (backup_id, plugin_id, plugin_name, role, label, filename, content_type, size, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        );
+        for (const asset of assets) {
+          insertAsset.run(
+            id,
+            asset.pluginId,
+            asset.pluginName,
+            asset.role,
+            asset.label,
+            asset.filename,
+            asset.contentType,
+            asset.size,
+            stamp,
+          );
+        }
+      }
     });
     tx();
     const removedPaths = this.applyRetention(bookmark.id);
@@ -508,6 +574,43 @@ export class Store {
       .get(id) as { path: string | null; title: string | null; bookmark_title: string } | null;
     if (!row?.path) return null;
     return { path: row.path, title: row.title ?? "", bookmarkTitle: row.bookmark_title };
+  }
+
+  listBackupAssets(backupId: number): BackupAsset[] {
+    const rows = this.db
+      .query(
+        `SELECT id, backup_id, plugin_id, plugin_name, role, label, filename, content_type, size
+         FROM backup_assets WHERE backup_id = ? ORDER BY id ASC`,
+      )
+      .all(backupId) as {
+      id: number;
+      backup_id: number;
+      plugin_id: string;
+      plugin_name: string;
+      role: string;
+      label: string;
+      filename: string;
+      content_type: string;
+      size: number;
+    }[];
+    return rows.map((row) => {
+      const url = `${config.archiveBaseUrl}/a/${row.backup_id}/plugins/${encodeURIComponent(
+        row.plugin_id,
+      )}/${encodeURIComponent(row.filename)}`;
+      return {
+        id: row.id,
+        backupId: row.backup_id,
+        pluginId: row.plugin_id,
+        pluginName: row.plugin_name,
+        role: row.role,
+        label: row.label,
+        filename: row.filename,
+        contentType: row.content_type,
+        size: row.size,
+        url,
+        downloadUrl: `${url}?download=1`,
+      };
+    });
   }
 
   private getBackupRow(id: number): BackupRow | null {

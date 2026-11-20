@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Backup, Bookmark, Settings } from "../../../shared/types";
+import type { Backup, BackupAsset, Bookmark, Settings } from "../../../shared/types";
+import { api } from "../api";
 import { DetailEmpty, ErrorBanner } from "./States";
 import { Monogram } from "./Bits";
 import {
@@ -63,6 +64,7 @@ export function DetailPane({
   );
   const [previewId, setPreviewId] = useState<number | null>(null);
   const [previewLoaded, setPreviewLoaded] = useState(false);
+  const [previewAssets, setPreviewAssets] = useState<BackupAsset[]>([]);
   const latestSuccessId = successBackups[0]?.id ?? null;
   const previousLatest = useRef<number | null>(null);
 
@@ -88,6 +90,26 @@ export function DetailPane({
 
   useEffect(() => {
     setPreviewLoaded(false);
+  }, [preview?.id]);
+
+  useEffect(() => {
+    const id = preview?.id;
+    if (!id) {
+      setPreviewAssets([]);
+      return;
+    }
+    let cancelled = false;
+    api
+      .backupAssets(id)
+      .then((data) => {
+        if (!cancelled) setPreviewAssets(data.assets);
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewAssets([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [preview?.id]);
 
   if (!bookmark) {
@@ -288,6 +310,50 @@ export function DetailPane({
             )}
           </div>
         </section>
+
+        {previewAssets.length > 0 ? (
+          <section className="asset-section" aria-label="插件保存的文件">
+            <div className="section-head">
+              <div>
+                <h2>插件保存的文件</h2>
+                <p className="section-sub">{previewAssets.length} 个附件，随这份快照一起保存</p>
+              </div>
+            </div>
+            <div className="asset-grid">
+              {previewAssets.map((asset) => (
+                <article className="asset-card" key={asset.id}>
+                  <a
+                    className="asset-thumb"
+                    href={asset.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    aria-label={`查看${asset.label}`}
+                  >
+                    {asset.contentType.startsWith("image/") ? (
+                      <img src={asset.url} alt={asset.label} loading="lazy" />
+                    ) : (
+                      <span className="asset-file">{asset.filename.split(".").pop()?.toUpperCase() || "FILE"}</span>
+                    )}
+                  </a>
+                  <div className="asset-info">
+                    <span className="asset-label">{asset.label}</span>
+                    <small>
+                      {asset.pluginName} · {formatSize(asset.size)}
+                    </small>
+                  </div>
+                  <a
+                    className="icon-btn"
+                    href={asset.downloadUrl}
+                    aria-label={`下载${asset.label}`}
+                    title={`下载${asset.label}`}
+                  >
+                    <DownloadIcon size={14} />
+                  </a>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {error ? <ErrorBanner message={error} onRetry={onRetry} /> : null}
 

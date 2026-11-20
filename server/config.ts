@@ -51,8 +51,10 @@ const dataDir = resolve(process.env.LINKBAG_DATA_DIR?.trim() || join(ROOT, "data
 const archiveDir = join(dataDir, "archives");
 const tmpDir = join(dataDir, "tmp");
 const dbPath = join(dataDir, "linkbag.db");
+const pluginsDir = resolve(process.env.LINKBAG_PLUGINS_DIR?.trim() || join(dataDir, "plugins"));
+const builtinPluginsDir = join(ROOT, "plugins");
 
-for (const dir of [dataDir, archiveDir, tmpDir]) {
+for (const dir of [dataDir, archiveDir, tmpDir, pluginsDir]) {
   mkdirSync(dir, { recursive: true });
 }
 
@@ -70,6 +72,8 @@ export const config = {
   dataDir,
   archiveDir,
   tmpDir,
+  pluginsDir,
+  builtinPluginsDir,
   dbPath,
   chromePath: findChrome(),
   version: "0.1.0",

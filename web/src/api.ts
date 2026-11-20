@@ -1,10 +1,12 @@
 import type {
   Activity,
   Backup,
+  BackupAssetsResponse,
   Bookmark,
   BookmarkDetailResponse,
   BookmarkListResponse,
   Health,
+  PluginListResponse,
   Settings,
   SettingsResponse,
   Stats,
@@ -73,6 +75,21 @@ export const api = {
   },
   deleteBackup(id: number): Promise<{ ok: boolean }> {
     return request(`/api/backups/${id}`, { method: "DELETE" });
+  },
+  backupAssets(id: number): Promise<BackupAssetsResponse> {
+    return request(`/api/backups/${id}/assets`);
+  },
+  plugins(): Promise<PluginListResponse> {
+    return request("/api/plugins");
+  },
+  updatePlugin(id: string, enabled: boolean): Promise<PluginListResponse> {
+    return request(`/api/plugins/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled }),
+    });
+  },
+  reloadPlugins(): Promise<PluginListResponse> {
+    return request("/api/plugins/reload", { method: "POST", body: "{}" });
   },
   activity(): Promise<Activity & { stats: Stats }> {
     return request("/api/activity");

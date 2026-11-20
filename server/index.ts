@@ -5,14 +5,17 @@ import { Store } from "./db";
 import { CaptureEngine } from "./engine";
 import { BackupQueue } from "./queue";
 import { createApi } from "./api";
+import { PluginManager } from "./plugins";
 import { sanitizeFilename } from "./util";
 
 const store = new Store(config.dbPath);
 store.markInterrupted();
 
 const engine = new CaptureEngine(store);
-const queue = new BackupQueue(store, engine);
-const api = createApi({ store, engine, queue });
+const plugins = new PluginManager(store);
+await plugins.load();
+const queue = new BackupQueue(store, engine, plugins);
+const api = createApi({ store, engine, queue, plugins });
 
 const distDir = join(config.root, "dist", "web");
 
@@ -31,8 +34,13 @@ const MIME: Record<string, string> = {
 
 function uiCsp(): string {
   const frameSources = new Set(["'self'", "http://127.0.0.1:8788", "http://localhost:8788"]);
+  const imageSources = new Set(["'self'", "data:", "blob:"]);
   try {
-    frameSources.add(new URL(config.archiveBaseUrl).origin);
+    const origin = new URL(config.archiveBaseUrl).origin;
+    frameSources.add(origin);
+    // Plugin assets (for example WeChat covers) are served from the archive
+    // origin, so the UI needs to be allowed to render them as images.
+    imageSources.add(origin);
   } catch {
     // ignore malformed origin
   }
@@ -40,7 +48,7 @@ function uiCsp(): string {
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    `img-src ${[...imageSources].join(" ")}`,
     "font-src 'self' data:",
     "connect-src 'self'",
     `frame-src ${[...frameSources].join(" ")}`,
@@ -135,18 +143,42 @@ function parseByteRange(value: string, size: number): { start: number; end: numb
   return { start, end };
 }
 
-async function serveArchiveVideo(request: Request, path: string): Promise<Response> {
+const PLUGIN_ASSET_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".avif": "image/avif",
+  ".svg": "image/svg+xml",
+  ".mp4": "video/mp4",
+  ".json": "application/json; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+};
+
+async function serveArchiveAsset(
+  request: Request,
+  path: string,
+  contentType: string,
+  downloadName?: string,
+): Promise<Response> {
   const file = Bun.file(path);
   if (!(await file.exists())) return new Response("Not found", { status: 404 });
   const size = (await file.stat()).size;
   const headers = new Headers({
-    "Content-Type": "video/mp4",
+    "Content-Type": contentType,
     "Cache-Control": "public, max-age=31536000, immutable",
     "X-Content-Type-Options": "nosniff",
     "X-Robots-Tag": "noindex, nofollow",
     "Referrer-Policy": "no-referrer",
     "Accept-Ranges": "bytes",
   });
+  if (downloadName) {
+    headers.set(
+      "Content-Disposition",
+      `attachment; filename="${downloadName}"; filename*=UTF-8''${encodeURIComponent(downloadName)}`,
+    );
+  }
 
   const rangeHeader = request.headers.get("range");
   if (rangeHeader) {
@@ -177,12 +209,30 @@ const archiveServer = Bun.serve({
       return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
     }
     const url = new URL(request.url);
+    const pluginMatch = url.pathname.match(
+      /^\/a\/(\d+)\/plugins\/([a-z0-9][a-z0-9_-]{0,63})\/([A-Za-z0-9][A-Za-z0-9._-]{0,120})$/,
+    );
+    if (pluginMatch?.[1] && pluginMatch[2] && pluginMatch[3]) {
+      const id = Number(pluginMatch[1]);
+      const meta = store.getArchiveMeta(id);
+      if (!meta) return new Response("Not found", { status: 404 });
+      const filename = pluginMatch[3];
+      const filePath = join(dirname(meta.path), String(id), "plugins", pluginMatch[2], filename);
+      const contentType = PLUGIN_ASSET_MIME[extname(filename).toLowerCase()] ?? "application/octet-stream";
+      const downloadName = url.searchParams.get("download") === "1" ? filename : undefined;
+      return serveArchiveAsset(request, filePath, contentType, downloadName);
+    }
+
     const videoMatch = url.pathname.match(/^\/a\/(\d+)\/videos\/([A-Za-z0-9_-]+\.mp4)$/);
     if (videoMatch?.[1] && videoMatch[2]) {
       const id = Number(videoMatch[1]);
       const meta = store.getArchiveMeta(id);
       if (!meta) return new Response("Not found", { status: 404 });
-      return serveArchiveVideo(request, join(dirname(meta.path), String(id), "videos", videoMatch[2]));
+      return serveArchiveAsset(
+        request,
+        join(dirname(meta.path), String(id), "videos", videoMatch[2]),
+        "video/mp4",
+      );
     }
 
     const match = url.pathname.match(/^\/a\/(\d+)$/);

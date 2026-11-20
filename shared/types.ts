@@ -22,6 +22,43 @@ export interface Backup {
   bookmarkUrl: string;
 }
 
+export interface BackupAssetInput {
+  pluginId: string;
+  pluginName: string;
+  role: string;
+  label: string;
+  filename: string;
+  contentType: string;
+  size: number;
+}
+
+export interface BackupAsset extends BackupAssetInput {
+  id: number;
+  backupId: number;
+  url: string;
+  downloadUrl: string;
+}
+
+export interface PluginInfo {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  builtin: boolean;
+  enabled: boolean;
+  hosts: string[];
+  error: string | null;
+}
+
+export interface PluginListResponse {
+  plugins: PluginInfo[];
+}
+
+export interface BackupAssetsResponse {
+  assets: BackupAsset[];
+}
+
 export interface Bookmark {
   id: number;
   url: string;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Health, Settings } from "../../../shared/types";
+import type { Health, PluginInfo, Settings } from "../../../shared/types";
 import { ErrorBanner } from "./States";
 import { Switch } from "./Bits";
 import { CopyIcon, PlayIcon, RefreshIcon } from "../icons";
@@ -8,10 +8,14 @@ import { formatUptime } from "../utils";
 type Props = {
   settings: Settings | null;
   health: Health | null;
+  plugins: PluginInfo[];
+  pluginsLoading: boolean;
   loading: boolean;
   error: string | null;
   saving: boolean;
   onSave: (patch: Partial<Settings>) => Promise<void>;
+  onTogglePlugin: (id: string, enabled: boolean) => void;
+  onReloadPlugins: () => void;
   onReleaseBrowser: () => void;
   onBackupAll: () => void;
   onRefresh: () => void;
@@ -21,10 +25,14 @@ type Props = {
 export function SettingsView({
   settings,
   health,
+  plugins,
+  pluginsLoading,
   loading,
   error,
   saving,
   onSave,
+  onTogglePlugin,
+  onReloadPlugins,
   onReleaseBrowser,
   onBackupAll,
   onRefresh,
@@ -225,6 +233,57 @@ export function SettingsView({
                 <PlayIcon size={12} />
                 全部备份
               </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <div className="settings-label">
+            <h2>插件</h2>
+            <p>快照完成后运行的扩展。插件可以保存额外文件，例如公众号封面图。</p>
+          </div>
+          <div className="settings-fields">
+            {pluginsLoading && plugins.length === 0 ? (
+              <p className="section-empty">正在扫描插件…</p>
+            ) : plugins.length === 0 ? (
+              <p className="section-empty">
+                还没有安装插件。把插件目录放到数据目录的 plugins/ 下，然后重新扫描。
+              </p>
+            ) : (
+              plugins.map((plugin) => (
+                <div className="plugin-row" key={plugin.id}>
+                  <div className="field-copy">
+                    <span className="plugin-title">
+                      {plugin.name}
+                      <span className="plugin-version">v{plugin.version}</span>
+                      {plugin.builtin ? <span className="info-badge">内置</span> : null}
+                    </span>
+                    {plugin.description ? <small>{plugin.description}</small> : null}
+                    <small className="plugin-hosts">
+                      适用于：{plugin.hosts.length > 0 ? plugin.hosts.join(", ") : "所有网页"}
+                    </small>
+                    {plugin.error ? <small className="error-text">加载失败：{plugin.error}</small> : null}
+                  </div>
+                  <Switch
+                    checked={plugin.enabled}
+                    onChange={(value) => onTogglePlugin(plugin.id, value)}
+                    label={plugin.enabled ? "已启用" : "已停用"}
+                    disabled={Boolean(plugin.error) || pluginsLoading}
+                  />
+                </div>
+              ))
+            )}
+            <div className="plugin-footer">
+              <button
+                type="button"
+                className="btn btn-small"
+                onClick={onReloadPlugins}
+                disabled={pluginsLoading}
+              >
+                <RefreshIcon size={13} />
+                {pluginsLoading ? "扫描中" : "重新扫描插件"}
+              </button>
+              <span className="plugin-hint">安装目录：数据目录 / plugins</span>
             </div>
           </div>
         </section>
