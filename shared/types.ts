@@ -110,7 +110,10 @@ export interface Health {
   startedAt: number;
   uptimeMs: number;
   archiveBaseUrl: string;
+  apiBaseUrl: string;
   dataDir: string;
+  envFile: string;
+  envFileLoaded: boolean;
   chromePath: string | null;
   browserState: BrowserState;
   browserLastError: string | null;

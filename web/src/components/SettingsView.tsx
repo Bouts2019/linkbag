@@ -296,7 +296,13 @@ export function SettingsView({
           <div className="settings-fields info-fields">
             <InfoRow label="备份站地址" value={health?.archiveBaseUrl ?? "—"} onCopy={copy} />
             <InfoRow label="数据目录" value={health?.dataDir ?? "—"} onCopy={copy} />
-            <InfoRow label="接口地址" value={health ? `http://127.0.0.1:${health.port}` : "—"} onCopy={copy} />
+            <InfoRow label="接口地址" value={health?.apiBaseUrl ?? "—"} onCopy={copy} />
+            <InfoRow
+              label="配置文件"
+              value={health?.envFile ?? "—"}
+              hint={health && !health.envFileLoaded ? "尚未创建，当前使用环境变量默认值" : undefined}
+              onCopy={copy}
+            />
             <div className="field-row">
               <span className="field-copy">
                 <span>备份文件</span>
@@ -321,10 +327,12 @@ export function SettingsView({
 function InfoRow({
   label,
   value,
+  hint,
   onCopy,
 }: {
   label: string;
   value: string;
+  hint?: string;
   onCopy: (value: string, label: string) => void;
 }) {
   return (
@@ -332,6 +340,7 @@ function InfoRow({
       <span className="field-copy">
         <span>{label}</span>
         <small className="mono-value">{value}</small>
+        {hint ? <small className="error-text">{hint}</small> : null}
       </span>
       <button type="button" className="icon-btn" onClick={() => void onCopy(value, label)} aria-label={`复制${label}`}>
         <CopyIcon size={15} />

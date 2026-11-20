@@ -104,10 +104,27 @@ data/
 | `LINKBAG_ARCHIVE_PORT` | `8788` | 归档服务端口 |
 | `LINKBAG_PUBLIC_HOST` | 与监听地址一致 | 生成归档 URL 时使用的主机名 |
 | `LINKBAG_ARCHIVE_ORIGIN` | `http://<publicHost>:8788` | 完整的归档源地址（反向代理时使用） |
+| `LINKBAG_API_ORIGIN` | `http://<publicHost>:8787` | 控制台/接口的对外地址，用于界面显示和启动日志 |
+| `LINKBAG_ENV_FILE` | `<数据目录>/linkbag.env` | 运行时配置文件的位置 |
 | `LINKBAG_DATA_DIR` | `./data` | 数据库、快照和临时目录的位置 |
 | `LINKBAG_CHROME_PATH` | 自动查找 | Chrome/Edge 可执行文件路径 |
 | `LINKBAG_ALLOWED_ORIGINS` | 空 | 额外允许调用 API 的来源，逗号分隔 |
 | `LINKBAG_CAPTURE_TIMEOUT_MS` | `150000` | 单次抓取的总超时 |
+
+### 运行时配置文件（`linkbag.env`）
+
+除了环境变量，LinkBag 还会读取数据目录下的 `linkbag.env`（Docker 下是 `/app/data/linkbag.env`）。文件使用标准 dotenv 格式，里面 `LINKBAG_` 开头的值会**覆盖**容器环境变量，其他前缀的键会被忽略。修改后重启进程或容器生效。
+
+```dotenv
+LINKBAG_API_ORIGIN=https://api.example.com/linkbag
+LINKBAG_ARCHIVE_ORIGIN=https://archive.example.com
+LINKBAG_DATA_DIR=/app/data
+```
+
+- 配置文件默认放在数据目录里，会随数据卷保留，重新部署镜像不会丢失。
+- 想换数据目录本身，请用 `LINKBAG_ENV_FILE` 指定一个固定位置的配置文件，否则移动后可能读不到旧文件。
+- Docker 下修改 `LINKBAG_DATA_DIR` 后，还要把新路径挂载到容器；修改或删除端口变量后，也要同步调整端口映射。
+- 模板见 [`linkbag.env.example`](linkbag.env.example)，当前生效的路径会显示在「设置 → 存储与地址 → 配置文件」。
 
 在 Windows PowerShell 中临时指定，例如：
 
@@ -150,6 +167,7 @@ server/
   engine.ts       # 抓取 worker 生命周期与空闲释放
   worker.ts       # 在 Chrome 中调用 SingleFile
   config.ts       # 环境变量、路径、浏览器查找
+  env.ts          # 读取数据目录里的 linkbag.env
 plugins/          # 内置插件（随镜像发布）
   wechat-cover/   # 微信公众号封面图
 web/              # React 控制台

@@ -1,8 +1,16 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadEnvFile } from "./env";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+// The dotenv file lives inside the data directory by default so it survives
+// container rebuilds through the mounted volume. `LINKBAG_ENV_FILE` can point
+// somewhere else when the data directory itself is being moved.
+const initialDataDir = resolve(process.env.LINKBAG_DATA_DIR?.trim() || join(ROOT, "data"));
+const envFile = resolve(process.env.LINKBAG_ENV_FILE?.trim() || join(initialDataDir, "linkbag.env"));
+const envFileLoaded = loadEnvFile(envFile);
 
 function intEnv(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -69,6 +77,11 @@ export const config = {
     process.env.LINKBAG_ARCHIVE_ORIGIN?.trim() ||
     `http://${publicHost}:${archivePort}`
   ).replace(/\/+$/, ""),
+  apiBaseUrl: (
+    process.env.LINKBAG_API_ORIGIN?.trim() || `http://${publicHost}:${port}`
+  ).replace(/\/+$/, ""),
+  envFile,
+  envFileLoaded,
   dataDir,
   archiveDir,
   tmpDir,

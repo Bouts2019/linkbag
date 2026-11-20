@@ -266,9 +266,10 @@ queue.start();
 
 console.log("");
 console.log("  LinkBag  ·  网页备份室");
-console.log(`  界面与接口   http://${config.publicHost}:${config.port}`);
+console.log(`  界面与接口   ${config.apiBaseUrl}`);
 console.log(`  备份站点     ${config.archiveBaseUrl}`);
 console.log(`  数据目录     ${config.dataDir}`);
+console.log(`  配置文件     ${config.envFile}${config.envFileLoaded ? "" : "（未创建，使用环境默认值）"}`);
 console.log(
   config.chromePath
     ? `  浏览器       ${config.chromePath}`
