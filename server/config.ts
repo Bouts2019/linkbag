@@ -19,6 +19,13 @@ function intEnv(name: string, fallback: number): number {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
 }
 
+function pathPrefix(raw: string | undefined): string {
+  const value = (raw ?? "").trim();
+  if (!value || value === "/") return "";
+  const withLeading = value.startsWith("/") ? value : `/${value}`;
+  return withLeading.replace(/\/+$/, "");
+}
+
 function findChrome(): string | null {
   const explicit = process.env.LINKBAG_CHROME_PATH?.trim();
   if (explicit) return existsSync(explicit) ? explicit : null;
@@ -80,6 +87,7 @@ export const config = {
   apiBaseUrl: (
     process.env.LINKBAG_API_ORIGIN?.trim() || `http://${publicHost}:${port}`
   ).replace(/\/+$/, ""),
+  basePath: pathPrefix(process.env.LINKBAG_BASE_PATH),
   envFile,
   envFileLoaded,
   dataDir,

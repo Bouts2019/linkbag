@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Activity, Backup, Bookmark, Health, PluginInfo, Settings, Stats } from "../../shared/types";
-import { api, ApiRequestError } from "./api";
+import { api, apiUrl, ApiRequestError } from "./api";
 import { Header } from "./components/Header";
 import { Ledger } from "./components/Ledger";
 import { DetailPane } from "./components/DetailPane";
@@ -135,7 +135,7 @@ export function App() {
 
   // Live updates
   useEffect(() => {
-    const source = new EventSource("/api/events");
+    const source = new EventSource(apiUrl("/api/events"));
     let timer: number | undefined;
     source.addEventListener("ready", () => setConnectionLost(false));
     source.addEventListener("change", () => {

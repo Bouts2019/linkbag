@@ -105,6 +105,7 @@ data/
 | `LINKBAG_PUBLIC_HOST` | 与监听地址一致 | 生成归档 URL 时使用的主机名 |
 | `LINKBAG_ARCHIVE_ORIGIN` | `http://<publicHost>:8788` | 完整的归档源地址（反向代理时使用） |
 | `LINKBAG_API_ORIGIN` | `http://<publicHost>:8787` | 控制台/接口的对外地址，用于界面显示和启动日志 |
+| `LINKBAG_BASE_PATH` | 空 | 控制台挂在反向代理子路径时使用，例如 `/linkbag`；归档地址不受影响 |
 | `LINKBAG_ENV_FILE` | `<数据目录>/linkbag.env` | 运行时配置文件的位置 |
 | `LINKBAG_DATA_DIR` | `./data` | 数据库、快照和临时目录的位置 |
 | `LINKBAG_CHROME_PATH` | 自动查找 | Chrome/Edge 可执行文件路径 |
@@ -125,6 +126,7 @@ LINKBAG_DATA_DIR=/app/data
 - 想换数据目录本身，请用 `LINKBAG_ENV_FILE` 指定一个固定位置的配置文件，否则移动后可能读不到旧文件。
 - Docker 下修改 `LINKBAG_DATA_DIR` 后，还要把新路径挂载到容器；修改或删除端口变量后，也要同步调整端口映射。
 - 模板见 [`linkbag.env.example`](linkbag.env.example)，当前生效的路径会显示在「设置 → 存储与地址 → 配置文件」。
+- 控制台和 API 如果挂在反向代理的子路径下（例如 `https://api.example.com/linkbag/`），设置 `LINKBAG_BASE_PATH=/linkbag`。前端资源使用相对路径，API 和 SSE 会跟随当前地址的目录；代理无论是否剥掉前缀都能工作。访问不带结尾斜杠的地址时，服务会跳转到带斜杠的路径。
 
 在 Windows PowerShell 中临时指定，例如：
 

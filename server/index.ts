@@ -117,10 +117,25 @@ const server = Bun.serve({
   idleTimeout: 30,
   async fetch(request) {
     const url = new URL(request.url);
-    if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
-      return api.fetch(request);
+    let pathname = url.pathname;
+    if (config.basePath) {
+      if (pathname === config.basePath) {
+        return Response.redirect(`${url.origin}${config.basePath}/${url.search}`, 308);
+      }
+      if (pathname.startsWith(`${config.basePath}/`)) {
+        pathname = pathname.slice(config.basePath.length);
+      }
     }
-    return serveUi(request);
+    let routed = request;
+    if (pathname !== url.pathname) {
+      const target = new URL(url);
+      target.pathname = pathname;
+      routed = new Request(target, request);
+    }
+    if (pathname === "/api" || pathname.startsWith("/api/")) {
+      return api.fetch(routed);
+    }
+    return serveUi(routed);
   },
 });
 

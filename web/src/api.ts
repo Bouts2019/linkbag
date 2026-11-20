@@ -24,11 +24,27 @@ export class ApiRequestError extends Error {
   }
 }
 
+/**
+ * The console can be mounted at the root or under a reverse-proxy prefix such
+ * as /linkbag/. Resolve API and SSE URLs against the directory the document
+ * was loaded from instead of hard-coding an origin or a leading slash.
+ */
+export function uiBasePath(): string {
+  const path = window.location.pathname;
+  if (path.endsWith("/")) return path;
+  const last = path.slice(path.lastIndexOf("/") + 1);
+  return last.includes(".") ? path.slice(0, path.lastIndexOf("/") + 1) : `${path}/`;
+}
+
+export function apiUrl(path: string): string {
+  return `${uiBasePath()}${path.replace(/^\/+/, "")}`;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body) headers.set("Content-Type", "application/json");
   if (init.method && init.method !== "GET") headers.set("X-LinkBag", "1");
-  const response = await fetch(path, { ...init, headers });
+  const response = await fetch(apiUrl(path), { ...init, headers });
   if (!response.ok) {
     let message = "服务暂时没有响应";
     let code = "request_failed";
