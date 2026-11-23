@@ -25,6 +25,13 @@ type Deps = {
 function isAllowedOrigin(origin: string | undefined, selfOrigin: string | null): boolean {
   if (!origin) return true;
   if (origin === selfOrigin) return true;
+  // The configured public API origin is trusted even when a reverse proxy
+  // makes the request URL look like an internal http://host:port address.
+  try {
+    if (origin === new URL(config.apiBaseUrl).origin) return true;
+  } catch {
+    // ignore malformed API origin
+  }
   if (/^chrome-extension:\/\/[a-z0-9]+$/i.test(origin)) return true;
   if (/^moz-extension:\/\/[a-z0-9-]+$/i.test(origin)) return true;
   // Only the Vite dev server is trusted in addition to the UI origin. The

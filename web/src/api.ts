@@ -26,9 +26,17 @@ export class ApiRequestError extends Error {
 
 /**
  * The console can be mounted at the root or under a reverse-proxy prefix such
- * as /linkbag/. Resolve API and SSE URLs against the directory the document
- * was loaded from instead of hard-coding an origin or a leading slash.
+ * as /linkbag/, and the API can live on another origin (for example the page
+ * on linkbag.example.com and the API on api.example.com/linkbag). The server
+ * injects that address through /config.js.
  */
+type RuntimeConfig = { apiBaseUrl?: string };
+
+function runtimeApiBase(): string {
+  const config = (window as Window & { __LINKBAG_CONFIG__?: RuntimeConfig }).__LINKBAG_CONFIG__;
+  return (config?.apiBaseUrl ?? "").trim().replace(/\/+$/, "");
+}
+
 export function uiBasePath(): string {
   const path = window.location.pathname;
   if (path.endsWith("/")) return path;
@@ -37,6 +45,9 @@ export function uiBasePath(): string {
 }
 
 export function apiUrl(path: string): string {
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  const base = runtimeApiBase();
+  if (base) return `${base}${suffix}`;
   return `${uiBasePath()}${path.replace(/^\/+/, "")}`;
 }
 

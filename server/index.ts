@@ -35,6 +35,7 @@ const MIME: Record<string, string> = {
 function uiCsp(): string {
   const frameSources = new Set(["'self'", "http://127.0.0.1:8788", "http://localhost:8788"]);
   const imageSources = new Set(["'self'", "data:", "blob:"]);
+  const connectSources = new Set(["'self'"]);
   try {
     const origin = new URL(config.archiveBaseUrl).origin;
     frameSources.add(origin);
@@ -44,13 +45,20 @@ function uiCsp(): string {
   } catch {
     // ignore malformed origin
   }
+  try {
+    // The console may be served from a different origin than the API (for
+    // example console on linkbag.example.com, API on api.example.com).
+    connectSources.add(new URL(config.apiBaseUrl).origin);
+  } catch {
+    // ignore malformed origin
+  }
   return [
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     `img-src ${[...imageSources].join(" ")}`,
     "font-src 'self' data:",
-    "connect-src 'self'",
+    `connect-src ${[...connectSources].join(" ")}`,
     `frame-src ${[...frameSources].join(" ")}`,
     "object-src 'none'",
     "base-uri 'none'",
@@ -79,7 +87,6 @@ p{line-height:1.7;color:#4A524C}code{background:#E2E6D8;padding:2px 6px}a{color:
 }
 
 async function serveUi(request: Request): Promise<Response> {
-  if (!existsSync(distDir)) return developmentPage();
   const url = new URL(request.url);
   let pathname: string;
   try {
@@ -87,6 +94,21 @@ async function serveUi(request: Request): Promise<Response> {
   } catch {
     return new Response("Bad request", { status: 400 });
   }
+  // Runtime UI configuration. The console calls the API at this address, so
+  // it can live on a different origin (for example linkbag.* for pages and
+  // api.*\/linkbag for JSON requests). The static public/config.js is only a
+  // development fallback.
+  if (pathname === "/config.js") {
+    const body = `window.__LINKBAG_CONFIG__ = ${JSON.stringify({ apiBaseUrl: config.apiBaseUrl })};\n`;
+    return new Response(body, {
+      headers: {
+        ...uiHeaders,
+        "Content-Type": "text/javascript; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+  if (!existsSync(distDir)) return developmentPage();
   if (pathname === "/" || pathname === "") pathname = "/index.html";
   const candidate = resolve(distDir, "." + normalize(pathname));
   const distRoot = resolve(distDir);
