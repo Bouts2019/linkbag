@@ -4,6 +4,14 @@
   "private": true,
   "type": "module",
   "description": "A quiet, self-hosted archive for the links you want to keep.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Bouts2019/linkbag.git"
+  },
+  "homepage": "https://github.com/Bouts2019/linkbag#readme",
+  "bugs": {
+    "url": "https://github.com/Bouts2019/linkbag/issues"
+  },
   "license": "AGPL-3.0-or-later",
   "scripts": {
     "dev": "concurrently -k -n api,web -c green,cyan \"bun --watch server/index.ts\" \"bunx vite\"",
