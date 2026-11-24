@@ -12,3 +12,10 @@ Thumbs.db
 .test-direct.mjs
 # docker-deploy local configuration (never commit server details)
 .deploy/
+# local runtime configuration (keep the example)
+.env
+.env.*
+!.env.example
+linkbag.env
+linkbag.env.*
+!linkbag.env.example

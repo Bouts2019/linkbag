@@ -4,6 +4,8 @@
 
 前端是 React 单页应用，后端是 Bun + Hono + SQLite。抓取由 SingleFile 在真实的 Chrome/Edge 中完成，快照是单个自包含的 HTML 文件，不依赖原站。
 
+> 项目状态：早期版本，面向个人自托管。LinkBag 没有账号体系，请只在自己的机器或可信内网中运行。
+
 ## 功能
 
 - **高保真快照**：使用 SingleFile 保存 HTML、样式、字体和图片，生成一个自包含 HTML 文件，断网也能打开。微信公众号文章的视频会作为同一份备份的伴随 MP4 文件保存，并在归档页里换成可直接播放的本地播放器。
@@ -38,12 +40,52 @@ mise run test      # 单元测试
 
 开发模式下访问 <http://localhost:5173>，API 请求会代理到 8787。修改前端后刷新即可；修改后端代码时 API 进程会自动重启。
 
+## Docker 部署
+
+仓库自带多阶段 `Dockerfile`，运行时镜像包含 Chromium，不需要在宿主机另外安装浏览器。
+
+```bash
+docker build -t linkbag .
+docker run -d --name linkbag \
+  -p 8787:8787 -p 8788:8788 \
+  -v "$PWD/data:/app/data" \
+  -e LINKBAG_HOST=0.0.0.0 \
+  -e LINKBAG_ARCHIVE_HOST=0.0.0.0 \
+  -e LINKBAG_PUBLIC_HOST=127.0.0.1 \
+  linkbag
+```
+
+Compose 示例：
+
+```yaml
+services:
+  linkbag:
+    build: .
+    container_name: linkbag
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+      - "8788:8788"
+    environment:
+      LINKBAG_HOST: 0.0.0.0
+      LINKBAG_ARCHIVE_HOST: 0.0.0.0
+      LINKBAG_PUBLIC_HOST: 127.0.0.1
+    volumes:
+      - ./data:/app/data
+```
+
+- `./data` 保存数据库、归档和插件，务必挂载到持久卷。
+- 对外发布时把 `LINKBAG_PUBLIC_HOST` 或 `LINKBAG_ARCHIVE_ORIGIN` 改成实际访问地址。
+- 也可以把配置写进 `./data/linkbag.env`，它会覆盖容器环境变量；模板见 [`linkbag.env.example`](linkbag.env.example)。
+
 ## 安装 Chrome 扩展
 
 1. 打开 `chrome://extensions`。
 2. 打开右上角「开发者模式」。
 3. 点「加载已解压的扩展程序」，选择本仓库的 `extension/` 目录。
 4. 建议把 LinkBag 固定到工具栏。
+
+扩展只申请 `contextMenus` 和 `storage` 权限，默认只能访问 `127.0.0.1` / `localhost`。填写远程地址时，Chrome 会额外询问该地址的访问权限。扩展只读取当前页面或链接的 URL，不读取页面正文。
 
 扩展默认连接 `http://127.0.0.1:8787`。如果改了端口或部署到了远程服务器，在扩展的「设置」里修改地址并保存；远程地址保存时会请求该地址的访问权限。
 
@@ -136,6 +178,62 @@ $env:LINKBAG_DATA_DIR = "D:\LinkBagData"
 mise run start
 ```
 
+## 反向代理
+
+LinkBag 故意把控制台/API（8787）和归档（8788）分开。对外发布时建议按下面的方式拆分域名：
+
+```text
+https://linkbag.example.com/            →  控制台       8787
+https://linkbag.example.com/a/<id>      →  归档页       8788
+https://linkbag.example.com/a/<id>/...  →  视频/附件    8788
+https://api.example.com/linkbag/api/... →  JSON API     8787
+```
+
+同一个域名按路径拆分时，`/a/` 必须转发到 8788，其余路径转发到 8787：
+
+```nginx
+server {
+    server_name linkbag.example.com;
+
+    location /a/ {
+        proxy_pass http://127.0.0.1:8788;
+        proxy_set_header Host $host;
+        proxy_buffering off;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8787;
+        proxy_set_header Host $host;
+    }
+}
+
+server {
+    server_name api.example.com;
+
+    location = /linkbag { return 308 /linkbag/; }
+    location /linkbag/ {
+        proxy_pass http://127.0.0.1:8787/;
+        proxy_set_header Host $host;
+        proxy_http_version 1.1;
+        proxy_buffering off;          # /linkbag/api/events 是 SSE
+        proxy_read_timeout 3600s;
+    }
+}
+```
+
+对应配置：
+
+```dotenv
+LINKBAG_API_ORIGIN=https://api.example.com/linkbag
+LINKBAG_ARCHIVE_ORIGIN=https://linkbag.example.com
+LINKBAG_BASE_PATH=/linkbag
+LINKBAG_ALLOWED_ORIGINS=https://linkbag.example.com
+```
+
+- `LINKBAG_API_ORIGIN` 是控制台实际请求的地址；它和控制台不同源时，必须把控制台来源加进 `LINKBAG_ALLOWED_ORIGINS`。
+- 归档域名**不要**和控制台共用同一个源，否则归档页面里的脚本也能调用 API。上面的例子里，如果 `linkbag.example.com` 同时承载控制台和 `/a/` 归档，两者仍然同源；更安全的做法是给归档单独一个域名。
+- 反向代理本身不提供登录认证。公网部署请在外层加认证（例如 Basic Auth、OAuth 网关或 VPN）。
+
 ## 资源占用
 
 - 抓取串行执行，不会同时开多个浏览器页面。
@@ -155,8 +253,12 @@ LinkBag 是**本机个人工具**，默认只监听 `127.0.0.1`，请不要直�
 - 归档服务运行在独立端口，不参与 API 的 CORS 白名单。
 - 归档页面被当作不可信内容：独立源 + iframe 沙箱 + 严格响应头。
 - 插件与主进程同权限运行（可读写文件、访问网络），只安装你审阅过的插件；用户插件默认停用。
+- 备份内容可能包含登录后的页面、私人文章和图片。`data/` 是你的隐私数据，已在 `.gitignore` 中忽略；不要把它提交到 Git，也不要公开归档端口。
+- 如果控制台和归档使用同一个源，归档页面里的脚本也能调用 API。建议给归档使用独立域名。
 
 如果你确实要通过反向代理远程访问，请自行增加身份认证，并同时配置 `LINKBAG_PUBLIC_HOST`、`LINKBAG_ARCHIVE_ORIGIN` 和 `LINKBAG_ALLOWED_ORIGINS`。
+
+安全策略和漏洞报告方式见 [SECURITY.md](SECURITY.md)。
 
 ## 项目结构
 
@@ -176,6 +278,8 @@ plugins/          # 内置插件（随镜像发布）
 web/              # React 控制台
 extension/        # Chrome MV3 扩展
 docs/             # 插件文档与封面图提取规格
+licenses/         # 内置字体的 OFL 许可证
+THIRD_PARTY_NOTICES.md
 shared/types.ts   # 前后端共享类型
 ```
 
@@ -190,6 +294,20 @@ shared/types.ts   # 前后端共享类型
 - 插件保存的封面图等附件同样是 HTML 的伴随文件，通过 LinkBag 的归档地址访问；单独下载 HTML 文件不会包含它们。
 - 插件在服务进程内运行，没有独立沙箱，超时或报错只会跳过该插件，不会让整次备份失败。
 
+## 参与贡献
+
+欢迎提交 issue 和 pull request。提交前请至少运行：
+
+```bash
+mise run test
+bunx tsc --noEmit
+bun run build
+```
+
+请避免在 issue、日志或截图里贴出真实的备份内容、内网地址和 cookie。
+
 ## 许可
 
-LinkBag 以 [AGPL-3.0-or-later](LICENSE) 发布。抓取依赖 [SingleFile](https://github.com/gildas-lormeau/SingleFile)，其许可证为 AGPL-3.0-or-later。
+LinkBag 以 [AGPL-3.0-or-later](LICENSE) 发布，Copyright (C) 2026 LinkBag contributors。
+
+抓取依赖 [SingleFile](https://github.com/gildas-lormeau/SingleFile)，其许可证为 AGPL-3.0-or-later。内置字体和其他第三方组件的许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

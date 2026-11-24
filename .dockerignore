@@ -6,6 +6,9 @@ node_modules
 .env
 .env.*
 !.env.example
+linkbag.env
+linkbag.env.*
+!linkbag.env.example
 *.log
 coverage
 .browser-profile

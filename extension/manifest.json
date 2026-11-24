@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LinkBag",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "把正在看的网页存进自己的备份室，随时找回它当时的样子。",
   "permissions": ["contextMenus", "storage"],
   "host_permissions": [
